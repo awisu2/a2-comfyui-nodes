@@ -1,25 +1,10 @@
-class A2StringPassthrough:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "text": ("STRING", {"default": "", "multiline": True}),
-            }
-        }
-
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("text",)
-    FUNCTION = "execute"
-    CATEGORY = "A2"
-
-    def execute(self, text):
-        return (text,)
-
+from .string_passthrough import StringPassthrough
 
 NODE_CLASS_MAPPINGS = {
-    "A2StringPassthrough": A2StringPassthrough
+    "StringPassthrough": StringPassthrough
 }
 
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "A2StringPassthrough": "String Passthrough (A2)"
-}
+# this is optionn. for easy development, I'm not using it.
+# NODE_DISPLAY_NAME_MAPPINGS = {
+#     "StringPassthrough": "String Passthrough"
+# }
