@@ -19,6 +19,35 @@ app.registerExtension({
             return node.inputs.filter(input => input.name.startsWith(InputPrefix));
         };
 
+        node.getSelectWidgetValues = function() {
+            const values = node.getInputs().filter(input => input.label !== AddLabel).map(input => input.label);
+            if (values.length) return values;
+            return ["0"];
+        };
+
+        // convert STRING widget to combo =====
+        // imporatant: values using function to get dynamic options, it can affect to front and current view
+        const widgetIndex = node.widgets?.findIndex(w => w.name === selectWidgetName) ?? -1;
+        let selectWidget = widgetIndex >= 0 ? node.widgets[widgetIndex] : null;
+
+        if (selectWidget && selectWidget.type !== "combo") {
+            const value = selectWidget.value;
+
+            node.widgets.splice(widgetIndex, 1);
+
+            selectWidget = node.addWidget(
+                "combo",
+                selectWidgetName,
+                value,
+                () => node.setDirtyCanvas(true, true),
+                { values: () => node.getSelectWidgetValues() }
+            );
+
+            selectWidget.serialize = true;
+            node.widgets.splice(node.widgets.indexOf(selectWidget), 1);
+            node.widgets.splice(widgetIndex, 0, selectWidget);
+        }
+
         function updateInputs() {
             // configuringGraph is life cycle progress. it block multiple updates.
             if (updating || !node.inputs || app.configuringGraph) return;
@@ -61,14 +90,8 @@ app.registerExtension({
                     input.label = label;
                 }
 
-
-                // update index max based on input count =====
-                const selectWidget = node.widgets?.find(w => w.name === selectWidgetName);
-
-                if (selectWidget) {
-                    // update display name =====
-                    updateSelectWidgetLabel();
-                }
+                // fix select widget value =====
+                fixSelectWidgetValue();
 
                 // add a new input at the end with the "+" label =====
                 const nextIndex = inputs.length;
@@ -120,30 +143,13 @@ app.registerExtension({
             node.updateInputs?.();
         });
 
-        // update index label when its value changes =====
-        const selectWidget = node.widgets?.find(w => w.name === selectWidgetName);
-        if (selectWidget) {
-            // get default callback
-            const _callback = selectWidget.callback;
-            selectWidget.callback = function(value) {
-                _callback?.call(this, value);
-                updateSelectWidgetLabel();
-            };
-        }
-
-        // update select display label based on selected input =====
-        function updateSelectWidgetLabel() {
+        // fix Widget value =====
+        function fixSelectWidgetValue() {
             if (!selectWidget) return;
 
             const value = selectWidget.value;
-
-            let options = node.getInputs()?.map(input => input.label)
-            if (!options || options.length === 0) {
-                options = ["0"];
-            }
-
-            selectWidget.options.values = options;
-            selectWidget.value = options.includes(value) ? value : options[0];
+            const values = node.getSelectWidgetValues();
+            selectWidget.value = values.includes(value) ? value : values[0];
         }
 
         // firstly it is blocked by the app.configuringGraph check. because it run before afterConfigureGraph is called.

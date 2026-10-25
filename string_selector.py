@@ -20,7 +20,10 @@ class StringSelector:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                SELECT_WIDGET_NAME: (["0"],),
+                SELECT_WIDGET_NAME: ("STRING", {
+                    "default": "",
+                    "tooltip": "Which case to run...",
+                }),
             },
             "optional": ContainsAnyDict({}),
         }
