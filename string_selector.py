@@ -1,19 +1,7 @@
+from .common.contains_any_dict import ContainsAnyDict
 
 INPUT_PREFIX = "input_"
 SELECT_WIDGET_NAME = "select"
-
-class ContainsAnyDict(dict):
-    def __contains__(self, key):
-        return key.startswith(INPUT_PREFIX) or super().__contains__(key)
-
-    def __getitem__(self, key):
-        if key.startswith(INPUT_PREFIX):
-            return ("STRING", {
-                "forceInput": True,
-                "lazy": True,
-            })
-        return super().__getitem__(key)
-
 
 class StringSelector:
     @classmethod
@@ -25,7 +13,7 @@ class StringSelector:
                     "tooltip": "Which case to run...",
                 }),
             },
-            "optional": ContainsAnyDict({}),
+            "optional": ContainsAnyDict(INPUT_PREFIX, "STRING", forceInput=True, lazy=True),
         }
 
     @classmethod

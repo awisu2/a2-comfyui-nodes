@@ -55,11 +55,12 @@ app.registerExtension({
 
             try {
                 function getSourceNode(input) {
-                    if (input.link == null) return null;
+                    if (input.link == null || !node.graph) return null;
+
                     const link = node.graph.links.get(input.link);
                     if (!link) return null;
-                    const sourceNode = node.graph.getNodeById(link.origin_id);
-                    return sourceNode;
+
+                    return node.graph.getNodeById(link.origin_id);
                 }
 
                 // get string inputs =====
