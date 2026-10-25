@@ -11,6 +11,7 @@ class StringPassthrough:
     RETURN_NAMES = ("text",)
     FUNCTION = "execute"
     CATEGORY = "A2"
+    DESCRIPTION = "Passes the input string through unchanged."
 
     def execute(self, text):
         return (text,)
