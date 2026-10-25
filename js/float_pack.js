@@ -14,9 +14,8 @@ app.registerExtension({
         if (!numWidget) return;
 
 
-
-        function updateInputs() {
-            if (app.configuringGraph) return;
+        function updateInputs(force = false) {
+            if (!force && app.configuringGraph) return;
             
             const num = getNum(numWidget);
 
@@ -59,8 +58,48 @@ app.registerExtension({
 
         node.updateInputs = updateInputs;
 
-        const originalCallback = numWidget.callback;
+        // Save FLOAT widget values =====
+        const originalOnSerialize = node.onSerialize;
 
+        node.onSerialize = function(info) {
+            originalOnSerialize?.apply(this, arguments);
+
+            info.floatPackValues = Object.fromEntries(
+                getValueWidgets(node).map(widget => [
+                    widget.name,
+                    widget.value
+                ])
+            );
+        };
+
+        // Restore FLOAT widget values =====
+        const originalOnConfigure = node.onConfigure;
+
+        node.onConfigure = function(info) {
+            originalOnConfigure?.apply(this, arguments);
+
+            const savedValues = info.floatPackValues;
+            if (!savedValues) return;
+
+            // Restore value_num first
+            const savedNum = info.widgets_values?.[0];
+            if (savedNum !== undefined) {
+                numWidget.value = savedNum;
+            }
+
+            // Recreate FLOAT widgets
+            updateInputs(true);
+
+            // Restore values by widget name
+            for (const widget of getValueWidgets(node)) {
+                if (Object.hasOwn(savedValues, widget.name)) {
+                    widget.value = savedValues[widget.name];
+                }
+            }
+        };
+
+        // setup num widget callback ====
+        const originalCallback = numWidget.callback;
         numWidget.callback = function(value) {
             originalCallback?.call(this, value);
             updateInputs();
