@@ -1,10 +1,13 @@
 
+INPUT_PREFIX = "input_"
+SELECT_WIDGET_NAME = "select"
+
 class ContainsAnyDict(dict):
     def __contains__(self, key):
-        return key.startswith("text_") or super().__contains__(key)
+        return key.startswith(INPUT_PREFIX) or super().__contains__(key)
 
     def __getitem__(self, key):
-        if key.startswith("text_"):
+        if key.startswith(INPUT_PREFIX):
             return ("STRING", {
                 "forceInput": True,
                 "lazy": True,
@@ -17,19 +20,14 @@ class StringSelector:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "index": ("INT", {
+                SELECT_WIDGET_NAME: ("INT", {
                     "default": 0,
                     "min": 0,
                     "max": 9999,
                     "step": 1,
                 }),
             },
-            "optional": ContainsAnyDict({
-                "text_0": ("STRING", {
-                    "forceInput": True,
-                    "lazy": True,
-                }),
-            }),
+            "optional": ContainsAnyDict({}),
         }
 
     RETURN_TYPES = ("STRING",)
@@ -37,8 +35,8 @@ class StringSelector:
     FUNCTION = "execute"
     CATEGORY = "A2"
 
-    def check_lazy_status(self, index, **kwargs):
-        selected = f"text_{index}"
+    def check_lazy_status(self, select, **kwargs):
+        selected = f"{INPUT_PREFIX}{select}"
 
         if selected not in kwargs:
             return []
@@ -48,5 +46,5 @@ class StringSelector:
 
         return []
 
-    def execute(self, index, **kwargs):
-        return (kwargs.get(f"text_{index}", ""),)
+    def execute(self, select, **kwargs):
+        return (kwargs.get(f"{INPUT_PREFIX}{select}", ""),)

@@ -1,54 +1,92 @@
 
 import { app } from "../../scripts/app.js";
 
+const ClassName = "StringSelector";
+const AddLabel = "+";
+const InputPrefix = "input_";
+const selectWidgetName = "select"
+
 app.registerExtension({
     name: "A2.StringSelector.Dynamic",
 
     nodeCreated(node) {
-        if (node.comfyClass !== "StringSelector") return;
+        if (node.comfyClass !== ClassName) return;
+
+        let updating = false;
+        node.updateInputs = updateInputs;
+
+        node.getInputs = function() {
+            return node.inputs.filter(input => input.name.startsWith(InputPrefix));
+        };
 
         function updateInputs() {
-            if (!node.inputs) return;
+            // configuringGraph is life cycle progress. it block multiple updates.
+            if (updating || !node.inputs || app.configuringGraph) return;
+            updating = true;
 
-            // 末尾の未接続端子を1つだけ残す
-            const inputs = node.inputs.filter(
-                input => /^text_\d+$/.test(input.name)
-            );
-
-            const connected = inputs.filter(
-                input => input.link != null
-            );
-
-            // 接続済み端子を先頭に並べ直す
-            // 未接続端子は末尾の1つだけにする
-            for (let i = node.inputs.length - 1; i >= 0; i--) {
-                const input = node.inputs[i];
-                if (
-                    /^text_\d+$/.test(input.name) &&
-                    input.link == null
-                ) {
-                    node.removeInput(i);
+            try {
+                function getSourceNode(input) {
+                    if (input.link == null) return null;
+                    const link = node.graph.links.get(input.link);
+                    if (!link) return null;
+                    const sourceNode = node.graph.getNodeById(link.origin_id);
+                    return sourceNode;
                 }
+
+                // get string inputs =====
+                const inputs = node.getInputs();
+
+                // remove tail not linked inputs ======
+                for (let i = inputs.length - 1; i >= 0; i--) {
+                    if (inputs[i].link != null) break;
+
+                    node.removeInput(node.inputs.indexOf(inputs[i]));
+                }
+
+                // update name and label =====
+                for (let index = 0; index < inputs.length; index++) {
+                    const input = inputs[index];
+
+                    // reset name to get value within the node correctly
+                    input.name = `${InputPrefix}${index}`;
+
+                    // update label if connected to a "+" input. =====
+                    let label = input.name;
+                    const sourceNode = getSourceNode(input);
+                    if (sourceNode && sourceNode.title) {
+                        label = index + ": " + sourceNode.title;
+                    }
+                    input.label = label;
+                }
+
+
+                // update index max based on input count =====
+                const indexWidget = node.widgets?.find(w => w.name === selectWidgetName);
+
+                if (indexWidget) {
+                    const max = Math.max(0, inputs.length - 1);
+                    indexWidget.options.max = max;
+                    indexWidget.value = Math.min(indexWidget.value, max);
+
+                    // update display name =====
+                    updateSelectWidgetLabel(indexWidget.value);
+                }
+
+                // add a new input at the end with the "+" label =====
+                const nextIndex = inputs.length;
+                node.addInput(`${InputPrefix}${nextIndex}`, "STRING");
+
+                const lastInput = node.inputs[node.inputs.length - 1];
+                lastInput.label = AddLabel;
+
+                // refresh node size and canvas =====
+                node.setSize(node.computeSize());
+                node.setDirtyCanvas(true, true);
+            }
+            finally {
+                updating = false;
             }
 
-            // 連番に振り直す
-            const remaining = node.inputs.filter(
-                input => /^text_\d+$/.test(input.name)
-            );
-
-            remaining.forEach((input, i) => {
-                input.name = `text_${i}`;
-                input.label = `text_${i}`;
-            });
-
-            // 次の接続用端子を追加
-            node.addInput(`text_${remaining.length}`, "STRING");
-
-            const last = node.inputs[node.inputs.length - 1];
-            last.label = "+";
-
-            node.setSize(node.computeSize());
-            node.setDirtyCanvas(true, true);
         }
 
         const original = node.onConnectionsChange;
@@ -58,19 +96,69 @@ app.registerExtension({
         ) {
             original?.apply(this, arguments);
 
-            // 入力端子の変更時だけ更新
             if (type === 1) {
                 updateInputs();
             }
         };
 
-        const originalConfigure = node.onConfigure;
+        // add cleanup button =====
+        node.addWidget("button", "Cleanup", null, () => {
+            updating = true;
+            try {
+                // remove all unlinked inputs =====
+                const inputs = node.getInputs();
 
-        node.onConfigure = function(info) {
-            originalConfigure?.call(this, info);
-            updateInputs();
-        };
+                for (let i = inputs.length - 1; i >= 0; i--) {
+                    if (inputs[i].link == null) {
+                        node.removeInput(node.inputs.indexOf(inputs[i]));
+                    }
+                }
+            }
+            finally {
+                updating = false;
+            }
 
-        updateInputs();
+            // rebuild inputs =====
+            node.updateInputs?.();
+        });
+
+        // update index label when its value changes =====
+        const selectWidget = node.widgets?.find(w => w.name === selectWidgetName);
+        if (selectWidget) {
+            const originalCallback = selectWidget.callback;
+
+            selectWidget.callback = function(value) {
+                originalCallback?.call(this, value);
+                updateSelectWidgetLabel(value);
+            };
+        }
+
+        // update select display label based on selected input =====
+        function updateSelectWidgetLabel(value) {
+            if (!selectWidget) return;
+
+            const input = node.inputs?.find(
+                input => input.name === `${InputPrefix}${value}`
+            );
+
+            selectWidget.label = input
+                ? input.label
+                : `${value}`;
+
+            node.setDirtyCanvas(true, true);
+        }
+
+        // firstly it is blocked by the app.configuringGraph check. because it run before afterConfigureGraph is called.
+        // afterConfigureGraph is called when workflow loading is complete. so first call is in afterConfigureGraph.
+        // then it runs when a node is added after workflow loading is complete.
+        node.updateInputs?.();
+    },
+    // Runs after the workflow is loaded, app.configuringGraph is false when running this. (include configuring process) =====
+    afterConfigureGraph(_missingNodeTypes, app) {
+        for (const node of app.graph._nodes) {
+            if (node.comfyClass === ClassName) {
+                node.updateInputs?.();
+            }
+        }
     },
 });
