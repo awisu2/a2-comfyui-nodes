@@ -34,7 +34,7 @@ app.registerExtension({
                 }
 
                 // get string inputs =====
-                const inputs = node.getInputs();
+                let inputs = node.getInputs();
 
                 // remove tail not linked inputs ======
                 for (let i = inputs.length - 1; i >= 0; i--) {
@@ -42,6 +42,8 @@ app.registerExtension({
 
                     node.removeInput(node.inputs.indexOf(inputs[i]));
                 }
+                // refresh
+                inputs = node.getInputs();
 
                 // update name and label =====
                 for (let index = 0; index < inputs.length; index++) {
@@ -61,15 +63,11 @@ app.registerExtension({
 
 
                 // update index max based on input count =====
-                const indexWidget = node.widgets?.find(w => w.name === selectWidgetName);
+                const selectWidget = node.widgets?.find(w => w.name === selectWidgetName);
 
-                if (indexWidget) {
-                    const max = Math.max(0, inputs.length - 1);
-                    indexWidget.options.max = max;
-                    indexWidget.value = Math.min(indexWidget.value, max);
-
+                if (selectWidget) {
                     // update display name =====
-                    updateSelectWidgetLabel(indexWidget.value);
+                    updateSelectWidgetLabel();
                 }
 
                 // add a new input at the end with the "+" label =====
@@ -125,27 +123,27 @@ app.registerExtension({
         // update index label when its value changes =====
         const selectWidget = node.widgets?.find(w => w.name === selectWidgetName);
         if (selectWidget) {
-            const originalCallback = selectWidget.callback;
-
+            // get default callback
+            const _callback = selectWidget.callback;
             selectWidget.callback = function(value) {
-                originalCallback?.call(this, value);
-                updateSelectWidgetLabel(value);
+                _callback?.call(this, value);
+                updateSelectWidgetLabel();
             };
         }
 
         // update select display label based on selected input =====
-        function updateSelectWidgetLabel(value) {
+        function updateSelectWidgetLabel() {
             if (!selectWidget) return;
 
-            const input = node.inputs?.find(
-                input => input.name === `${InputPrefix}${value}`
-            );
+            const value = selectWidget.value;
 
-            selectWidget.label = input
-                ? input.label
-                : `${value}`;
+            let options = node.getInputs()?.map(input => input.label)
+            if (!options || options.length === 0) {
+                options = ["0"];
+            }
 
-            node.setDirtyCanvas(true, true);
+            selectWidget.options.values = options;
+            selectWidget.value = options.includes(value) ? value : options[0];
         }
 
         // firstly it is blocked by the app.configuringGraph check. because it run before afterConfigureGraph is called.

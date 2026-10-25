@@ -20,23 +20,24 @@ class StringSelector:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                SELECT_WIDGET_NAME: ("INT", {
-                    "default": 0,
-                    "min": 0,
-                    "max": 9999,
-                    "step": 1,
-                }),
+                SELECT_WIDGET_NAME: (["0"],),
             },
             "optional": ContainsAnyDict({}),
         }
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        return True
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("text",)
     FUNCTION = "execute"
     CATEGORY = "A2"
 
+    # Arguments are needed to have the same name as the widget name
     def check_lazy_status(self, select, **kwargs):
-        selected = f"{INPUT_PREFIX}{select}"
+        number = self.getSelectPrefix(select)
+        selected = f"{INPUT_PREFIX}{number}"
 
         if selected not in kwargs:
             return []
@@ -46,5 +47,10 @@ class StringSelector:
 
         return []
 
+    # Arguments are needed to have the same name as the widget name
     def execute(self, select, **kwargs):
-        return (kwargs.get(f"{INPUT_PREFIX}{select}", ""),)
+        number = self.getSelectPrefix(select)
+        return (kwargs.get(f"{INPUT_PREFIX}{number}", ""),)
+
+    def getSelectPrefix(self, select):
+        return str(select).split(":", 1)[0].strip()
