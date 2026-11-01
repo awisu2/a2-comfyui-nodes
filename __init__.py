@@ -3,13 +3,15 @@ from .string_selector import StringSelector
 from .random_number import RandomNumber
 from .float_pack import FloatPack
 from .float_unpack import FloatUnpack
+from .string_selector_yaml import StringSelectorYaml
 
 NODE_CLASS_MAPPINGS = {
     "StringPassthrough": StringPassthrough,
     "StringSelector": StringSelector,
     "RandomNumber": RandomNumber,
     "FloatPack": FloatPack,
-    "FloatUnpack": FloatUnpack
+    "FloatUnpack": FloatUnpack,
+    "StringSelectorYaml": StringSelectorYaml
 }
 
 WEB_DIRECTORY = "./js"

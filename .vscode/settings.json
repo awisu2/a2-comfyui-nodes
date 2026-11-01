@@ -1,3 +1,32 @@
 {
-  "editor.formatOnSave": true
+  "editor.tabSize": 2,
+  // 改行コード
+  "files.eol": "\n",
+  // prettierである必要はない。これを指定しないとformatOnSaveがうまく動作しないっぽい
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+
+  // javascript, json, typescript , typescriptreact
+  // 88の意味はあまりない。htmlに合わせた
+  "prettier.printWidth": 88,
+  "prettier.tabWidth": 2,
+  "prettier.semi": false,
+  "prettier.singleQuote": true,
+  // {}や()の内部変数の前後へのスペース付与フラグ
+  "prettier.bracketSpacing": true,
+  // 改行コード
+  "prettier.endOfLine": "lf",
+  // 最後の,を強制
+  "prettier.trailingComma": "none",
+  // scriptなどのタグ内で、indentをつけない
+  "prettier.vueIndentScriptAndStyle": false,
+
+  // prettierの対象外とする拡張子
+  "prettier.disableLanguages": [],
+  // ignore対象設定ファイル
+  "prettier.ignorePath": ".prettierignore",
+
+  "[shellscript]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
+  }
 }

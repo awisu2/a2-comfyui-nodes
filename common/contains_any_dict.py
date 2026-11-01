@@ -1,3 +1,12 @@
+
+# カスタム dict クラス
+# 
+# ComfyUIのInputフォーマットに合わせたitemを生成する
+# 例:
+# "select": ("STRING", {
+#     "default": "",
+#     "tooltip": "Which case to run...",
+# }),
 class ContainsAnyDict(dict):
     def __init__(self, prefix, data_type, **options):
         super().__init__()
