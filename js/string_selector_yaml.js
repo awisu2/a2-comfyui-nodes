@@ -125,7 +125,7 @@ function updateSelectWidgetValues(node) {
   const state = nodeStates.get(node)
   const values = getSelectValues(state.valueParsed)
 
-  widget.options.values = values
+  widget.options.values = () => getSelectValues(state.valueParsed)
   widget.value = values.includes(widget.value) ? widget.value : (values[0] ?? '')
 
   node.setDirtyCanvas(true, true)

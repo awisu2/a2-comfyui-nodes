@@ -4,6 +4,7 @@ from .random_number import RandomNumber
 from .float_pack import FloatPack
 from .float_unpack import FloatUnpack
 from .string_selector_yaml import StringSelectorYaml
+from .string_multi_selector_yaml import StringMultiSelectorYaml
 
 NODE_CLASS_MAPPINGS = {
     "StringPassthrough": StringPassthrough,
@@ -11,7 +12,8 @@ NODE_CLASS_MAPPINGS = {
     "RandomNumber": RandomNumber,
     "FloatPack": FloatPack,
     "FloatUnpack": FloatUnpack,
-    "StringSelectorYaml": StringSelectorYaml
+    "StringSelectorYaml": StringSelectorYaml,
+    "StringMultiSelectorYaml": StringMultiSelectorYaml
 }
 
 WEB_DIRECTORY = "./js"
