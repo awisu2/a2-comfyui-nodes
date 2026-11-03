@@ -58,31 +58,7 @@ function initSelectWidget(node) {
   }
 
   const state = nodeStates.get(node)
-
-  // convert widget to combo if it's not already
-  if (widget.type != 'combo') {
-    const widgetIndex = node.widgets.indexOf(widget)
-    const _value = widget.value
-
-    // remove
-    node.widgets.splice(widgetIndex, 1)
-
-    widget = node.addWidget(
-      'combo',
-      SelectWidgetName,
-      _value,
-      () => {
-        node.setDirtyCanvas(true, true)
-      },
-      {
-        values: () => getSelectValues(state.valueParsed)
-      }
-    )
-    widget.serialize = true
-
-    node.widgets.splice(node.widgets.indexOf(widget), 1)
-    node.widgets.splice(widgetIndex, 0, widget)
-  }
+  widget.options.values = () => getSelectValues(state.valueParsed)
 
   updateSelectWidgetValues(node)
 }

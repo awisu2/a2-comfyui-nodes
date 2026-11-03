@@ -28,15 +28,12 @@ class StringSelectorYaml:
 
     # Arguments are needed to have the same name as the widget name
     def execute(self, select, values, **kwargs):
-        _, key = select.split(":", 1)
-        key = key.strip()
-
         try:
             parsed_values = yaml.safe_load(values)
         except yaml.YAMLError:
             return ("",)
 
-        if key in parsed_values:
-            return (parsed_values[key],)
+        if select in parsed_values:
+            return (parsed_values[select],)
         return ("",)
 

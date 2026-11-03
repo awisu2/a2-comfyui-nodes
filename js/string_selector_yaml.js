@@ -1,5 +1,10 @@
 import { app } from '../../scripts/app.js'
-import { getExtensionName, beforeRegisterNodeDef, NodeStates } from './common.js'
+import {
+  getExtensionName,
+  beforeRegisterNodeDef,
+  NodeStates,
+  replaceWidget
+} from './common.js'
 import * as YAML from './lib/yaml.mjs'
 
 const ClassName = 'StringSelectorYaml'
@@ -7,9 +12,13 @@ const ValuesWidgetName = 'values'
 const SelectWidgetName = 'select'
 
 const nodeStates = new NodeStates({
-  updating: false,
+  // 初期化時に widgetを確保して、以降の処理での再取得を避ける
+  valueWidget: null,
+  selectWidget: null,
+
   value: '',
-  valueParsed: {}
+  valueParsed: {},
+  selectValues: []
 })
 
 app.registerExtension({
@@ -22,33 +31,52 @@ app.registerExtension({
 })
 
 function onNodeCreated(node) {
-  initValuesWidget(node)
-  initSelectWidget(node)
+  try {
+    initializeState(node)
+
+    initValuesWidget(node)
+    initSelectWidget(node)
+  } catch (e) {
+    console.error('Error initializing node: ', node, e)
+  }
+}
+
+function initializeState(node) {
+  const state = nodeStates.get(node)
+
+  state.valueWidget = node.widgets?.find((w) => w.name === ValuesWidgetName)
+  state.selectWidget = node.widgets?.find((w) => w.name === SelectWidgetName)
+  if (!state.valueWidget || !state.selectWidget) {
+    throw new Error('Required widgets not found')
+  }
+}
+
+function onUpdateValueWidget(node, value) {
+  try {
+    const state = nodeStates.get(node)
+    state.value = value
+
+    const _parsed = tryParseValues(state.valueWidget.value)
+    if (_parsed) {
+      state.valueParsed = _parsed
+      state.selectValues = generateSelectValues(_parsed)
+    }
+
+    updateSelectWidgetValues(node)
+  } catch (e) {
+    console.error('Error updating value widget: ', node, e)
+  }
 }
 
 function initValuesWidget(node) {
-  const widget = node.widgets?.find((w) => w.name === ValuesWidgetName)
-  if (!widget) return
-
-  const _update = (node) => {
-    const state = nodeStates.get(node)
-    state.value = widget.value
-
-    const _oldParsed = state.valueParsed
-    const _parsed = parseValues(widget.value)
-    state.valueParsed = _parsed ?? _oldParsed ?? {}
-  }
-
-  const _callback = widget.callback
-  widget.callback = function (value) {
+  const state = nodeStates.get(node)
+  const _callback = state.valueWidget.callback
+  state.valueWidget.callback = function (value) {
     _callback?.apply(this, arguments)
-
-    _update(node)
-
-    updateSelectWidgetValues(node)
+    onUpdateValueWidget(node, value)
   }
 
-  _update(node)
+  onUpdateValueWidget(node, state.valueWidget.value)
 }
 
 function initSelectWidget(node) {
@@ -59,36 +87,32 @@ function initSelectWidget(node) {
 
   const state = nodeStates.get(node)
 
-  // convert widget to combo if it's not already
-  if (widget.type != 'combo') {
-    const widgetIndex = node.widgets.indexOf(widget)
-    const _value = widget.value
-
-    // remove
-    node.widgets.splice(widgetIndex, 1)
-
-    widget = node.addWidget(
-      'combo',
-      SelectWidgetName,
-      _value,
-      () => {
-        node.setDirtyCanvas(true, true)
-      },
-      {
-        values: () => getSelectValues(state.valueParsed)
-      }
-    )
-    widget.serialize = true
-
-    node.widgets.splice(node.widgets.indexOf(widget), 1)
-    node.widgets.splice(widgetIndex, 0, widget)
-  }
+  // Note: ちょっとしたハックコード。pythonでのtypeをStringにしておき、ここでComboに変換することで、動作上Comboだけれど、inputの型をstringのままにすることができる
+  // メリット: SubGraph内外の接続時に、複数Node間で接続の互換性が保たれる
+  // widget.options.values = () => state.selectValues
+  const oldWidget = state.selectWidget
+  state.selectWidget = replaceWidget(
+    node,
+    oldWidget,
+    'Combo',
+    SelectWidgetName,
+    oldWidget.value,
+    () => {
+      node.setDirtyCanvas(true, true)
+    },
+    {
+      default: '',
+      tooltip: 'please enter YAML content',
+      values: () => state.selectValues
+    }
+  )
 
   updateSelectWidgetValues(node)
 }
 
-function parseValues(value) {
+function tryParseValues(value) {
   try {
+    // parseが成功して一般的な値(プリミティブ)であれば、stringに変更して返却
     const parsed = YAML.parse(value)
     if (
       parsed !== null &&
@@ -96,11 +120,7 @@ function parseValues(value) {
       !Array.isArray(parsed) &&
       Object.values(parsed).every((v) => v === null || typeof v !== 'object')
     ) {
-      return Object.fromEntries(
-        Object.entries(parsed).map(([key, value]) => {
-          return [key, String(value ?? '')]
-        })
-      )
+      return parsed
     }
     return null
   } catch (e) {
@@ -108,25 +128,25 @@ function parseValues(value) {
   }
 }
 
-function getSelectValues(parsedValue) {
-  const keys = Object.keys(parsedValue ?? {})
-
-  const selectValues = []
-  for (let i = 0; i < keys.length; i++) {
-    selectValues.push(i + ': ' + keys[i])
-  }
-  return selectValues
+function generateSelectValues(parsedValue) {
+  return Object.keys(parsedValue ?? {})
 }
 
 function updateSelectWidgetValues(node) {
-  const widget = node.widgets?.find((w) => w.name === SelectWidgetName)
-  if (!widget) return
-
   const state = nodeStates.get(node)
-  const values = getSelectValues(state.valueParsed)
+  const widget = state.selectWidget
+  const values = state.selectValues
 
-  widget.options.values = () => getSelectValues(state.valueParsed)
-  widget.value = values.includes(widget.value) ? widget.value : (values[0] ?? '')
+  // fix select widget value =====
+  if (values.length === 0) {
+    widget.value = ''
+    return
+  }
 
+  if (!values.includes(widget.value)) {
+    widget.value = values[0] ?? ''
+  }
+
+  // update UI
   node.setDirtyCanvas(true, true)
 }

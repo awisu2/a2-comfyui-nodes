@@ -33,3 +33,20 @@ export class NodeStates {
     return this.map.get(node)
   }
 }
+
+// node上の特定のwidgetを新しく作成したもので差し替える
+// type からの引数は 新規widget作成時の引数
+export function replaceWidget(node, oldWidget, type, name, value, onChange, options) {
+  const widgetIndex = node.widgets.indexOf(oldWidget)
+  if (widgetIndex === -1) return null
+
+  // remove
+  node.widgets.splice(widgetIndex, 1)
+
+  const widget = node.addWidget(type, name, value, onChange, options)
+
+  node.widgets.splice(node.widgets.indexOf(widget), 1)
+  node.widgets.splice(widgetIndex, 0, widget)
+
+  return widget
+}
